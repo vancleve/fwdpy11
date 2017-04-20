@@ -1,7 +1,28 @@
 from .wfevolve_qtrait import evolve_singlepop_regions_qtrait_cpp
+import math
+
+class GSS:
+    def __init__(self,VS,O):
+        self.VS=VS
+        self.O=O
+    def __call__(self,trait_value):
+        devsq=pow(trait_value-self.O,2)
+        w = math.exp(-devsq/(2.0*self.VS))
+        return w
+
+class GaussianNoise:
+    def __init__(self,sd,rng):
+        self.sd=sd
+        self.rng=rng
+    def __call__(self):
+        return 0.
+
+
+
 def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
         mu_selected,recrate,nregions,sregions,recregions,trait_model,
-        recorder,environments,selfing_rate = 0.):
+        recorder,trait_to_fitness=GSS(1,0.0),noise=None,selfing_rate = 0.):
+
     """
     Evolve a single deme according to a Wright-Fisher life cycle 
     with arbitrary changes in population size, a specified fitness model,
@@ -45,7 +66,9 @@ def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
     the values for `optimum`, `VS` and :math:`\sigma_e` are applied.
     """
     from .internal import makeMutationRegions,makeRecombinationRegions
+    if noise is None:
+        noise = GaussianNoise(0.,rng)
     mm=makeMutationRegions(nregions,sregions)
     rm=makeRecombinationRegions(recregions)
     evolve_singlepop_regions_qtrait_cpp(rng,pop,popsizes,mu_neutral,
-            mu_selected,recrate,mm,rm,trait_model,recorder,selfing_rate,environments)
+            mu_selected,recrate,mm,rm,trait_model,recorder,selfing_rate,trait_to_fitness,noise)
