@@ -29,6 +29,8 @@ class GSS:
         :param VS: 1/VS is intensity of selection against phenotypic deviations from the mean/optimum.
         :param O: The optimum trait value.
         """
+        if VS <= 0.:
+            raise ValueError("VS > 0 required")
         self.VS=VS
         self.O=O
     def __call__(self,trait_value):
