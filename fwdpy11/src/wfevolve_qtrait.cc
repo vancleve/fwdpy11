@@ -56,9 +56,17 @@ evolve_singlepop_regions_qtrait_cpp(
     fwdpy11::singlepop_fitness& fitness,
     fwdpy11::singlepop_temporal_sampler recorder, const double selfing_rate,
     std::function<double(double)> trait_to_fitness,
-    std::function<void(KTfwd::uint_t)> trait_to_fitness_updater,
+    py::object trait_to_fitness_updater,
     std::function<double(void)> gaussian_noise)
 {
+
+    bool updater_exists = false;
+    py::function updater;
+    if (trait_to_fitness_updater != py::none())
+        {
+            updater = py::function(trait_to_fitness_updater);
+            updater_exists=true;
+        }
     const auto generations = popsizes.size();
     if (!generations)
         throw std::runtime_error("empty list of population sizes");
@@ -77,11 +85,11 @@ evolve_singlepop_regions_qtrait_cpp(
             throw std::runtime_error("negative recombination rate: "
                                      + std::to_string(recrate));
         }
-    //if (environmental_changes.empty())
+    // if (environmental_changes.empty())
     //    {
     //        throw std::runtime_error("empty list of environmental changes.");
     //    }
-    //for (auto&& ei : environmental_changes)
+    // for (auto&& ei : environmental_changes)
     //    {
     //        if (std::get<VS>(ei) < 0.)
     //            {
@@ -104,14 +112,15 @@ evolve_singlepop_regions_qtrait_cpp(
         mmodel, pop.mutations, pop.mut_lookup, rng.get(), mu_neutral,
         mu_selected, &pop.generation);
     ++pop.generation;
-    auto rules = fwdpy11::qtrait::qtrait_model_rules(trait_to_fitness,gaussian_noise);
+    auto rules = fwdpy11::qtrait::qtrait_model_rules(trait_to_fitness,
+                                                     gaussian_noise);
     // generate FIFO queue of env changes
-    //std::queue<env> env_q(std::deque<env>(environmental_changes.begin(),
+    // std::queue<env> env_q(std::deque<env>(environmental_changes.begin(),
     //                                      environmental_changes.end()));
     for (unsigned generation = 0; generation < generations;
          ++generation, ++pop.generation)
         {
-            //if (!env_q.empty())
+            // if (!env_q.empty())
             //    {
             //        auto next_env = env_q.front();
             //        if (pop.generation >= std::get<GEN>(next_env))
@@ -134,7 +143,10 @@ evolve_singlepop_regions_qtrait_cpp(
                                     pop.fixation_times, pop.mut_lookup,
                                     pop.mcounts, generation, 2 * pop.N);
             recorder(pop);
-            trait_to_fitness_updater(pop.generation);
+            if(updater_exists)
+            {
+                updater(generation);
+            }
         }
     --pop.generation;
 }

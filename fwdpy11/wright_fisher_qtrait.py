@@ -2,33 +2,30 @@ from .wfevolve_qtrait import evolve_singlepop_regions_qtrait_cpp
 import math
 
 class GSS:
+    """
+    Gaussian stabilizing selection with a constant optimum.
+
+    This is a callable object.  The __call__ function
+    takes a trait value and return a fitness.
+
+    Its parameters are given below.
+
+    :param trait_value: A trait (phenotype) value
+
+    :return: :math:`w=e^{-\\frac{(G-E)^2}{2VS}}`
+
+    :rtype: float
+    """
     def __init__(self,VS,O):
+        """
+        :param VS: 1/VS is intensity of selection against phenotypic deviations from the mean/optimum.
+        :param O: The optimum trait value.
+        """
         self.VS=VS
         self.O=O
     def __call__(self,trait_value):
-        """
-        Take a trait value and return a fitness.
-
-        :param trait_value: A trait (phenotype) value
-
-        :return: Fitness
-
-        :rtype: float
-        """
         devsq=pow(trait_value-self.O,2)
         return math.exp(-devsq/(2.0*self.VS))
-    def update(self,generation):
-        """
-        This function is called each generation,
-        allowing the state of the fitness function to
-        change.
-
-        :param generation: The generation of the simulation.
-        """
-        if(self.O==0.):
-            self.O=-1.0
-        else: 
-            self.O *= -1.0
 
 class GaussianNoise:
     def __init__(self,sd,rng):
@@ -91,6 +88,10 @@ def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
         noise = GaussianNoise(0.,rng)
     mm=makeMutationRegions(nregions,sregions)
     rm=makeRecombinationRegions(recregions)
+    updater = None
+    if hasattr(trait_to_fitness,'update'):
+        print("true")
+        updater = partial(type(trait_to_fitness).update,trait_to_fitness)
     evolve_singlepop_regions_qtrait_cpp(rng,pop,popsizes,mu_neutral,
             mu_selected,recrate,mm,rm,trait_model,recorder,selfing_rate,
-            trait_to_fitness,partial(type(trait_to_fitness).update,trait_to_fitness),noise)
+            trait_to_fitness,updater,noise)
