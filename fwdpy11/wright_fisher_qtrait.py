@@ -27,6 +27,39 @@ class GSS:
         devsq=pow(trait_value-self.O,2)
         return math.exp(-devsq/(2.0*self.VS))
 
+class GSSmo:
+    """
+    Gaussian stabilizing selection with moving optimum.
+    """
+    def __init__(self,optima):
+        """
+        :param optima: A list of tuples.  Each tuple is (generation,optimum,VS)
+        """
+        if len(optima) == 0:
+            raise ValueError("empty list of optima")
+        for oi in optima:
+            if isinstance(oi,tuple) is False: 
+                raise ValueError("optima must cointain tuples")
+            if len(oi) != 3:
+                raise ValueError("incorrect tuple length")
+        self.optima = optima
+        self.env = self.optima.pop(0)
+    def __call__(self,P):
+        devsq=pow(P-self.env[1],2)
+        return math.exp(-devsq/(2.0*self.env[2]))
+    def update(self,generation):
+        """
+        Update the fitness model conditins.
+
+        :param generation: the generation in the simulation
+
+        .. note:: this function is called from within the simulation
+        """
+        if len(self.optima)==0:
+            return
+        if generation >= self.optima[0][0]:
+            self.env = self.optima.pop(0)
+
 class GaussianNoise:
     def __init__(self,sd,rng):
         self.sd=sd
