@@ -1,6 +1,13 @@
 from .wfevolve_qtrait import evolve_singlepop_regions_qtrait_cpp
 import math
 
+#Note: making changes until "END LINE NUMBER EMBARGO"
+#is seen below requires changes to the documentation as 
+#well!  The fwdpy11 manual includes specific line ranges
+#from this file in order to provide examples of trait ->
+#fitness and noise functions.  The relevant manual file
+#is doc/examples/qtraits.rst
+
 class GSS:
     """
     Gaussian stabilizing selection with a constant optimum.
@@ -42,6 +49,10 @@ class GSSmo:
                 raise ValueError("optima must cointain tuples")
             if len(oi) != 3:
                 raise ValueError("incorrect tuple length")
+            if oi[0] < 0:
+                raise ValueError("negative generation not allowed")
+            if oi[2] <= 0.0:
+                raise ValueError("VS > 0 required")
         self.optima = optima
         self.env = self.optima.pop(0)
     def __call__(self,P):
@@ -67,7 +78,7 @@ class GaussianNoise:
     def __call__(self):
         return 0.
 
-
+##END LINE NUMBER EMBARGO##
 
 def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
         mu_selected,recrate,nregions,sregions,recregions,trait_model,
