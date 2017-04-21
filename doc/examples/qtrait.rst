@@ -143,7 +143,7 @@ The following code block represents the following model:
 
     #Set up data for GSSmo
     gss_params=[(0,0.0,1.0)]
-    #Starting at 10N gens into the sim,
+    #Starting at N gens into the sim,
     #the environment changes according to geometric
     #distribution with mean 0.1*N
     timepoint=N
