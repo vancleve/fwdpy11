@@ -38,6 +38,14 @@ class GSS:
 class GSSmo:
     """
     Gaussian stabilizing selection with moving optimum.
+
+    .. note::
+        This class's constructor enforces nothing about the initial 
+        values for the model parameters. The reason is for flexibility,
+        in that you may run a simulation, and then evolve more later 
+        one.  However, it makes sense that, when you start a simulation,
+        the first tuple for the constructor refers to the population's
+        current genration.
     """
     def __init__(self,optima):
         """
