@@ -45,7 +45,7 @@ class GSSmo:
         in that you may run a simulation, and then evolve more later 
         one.  However, it makes sense that, when you start a simulation,
         the first tuple for the constructor refers to the population's
-        current genration.
+        current generation.
     """
     def __init__(self,optima):
         """
