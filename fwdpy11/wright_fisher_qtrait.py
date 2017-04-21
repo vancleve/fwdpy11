@@ -73,7 +73,17 @@ class GSSmo:
             self.env = self.optima.pop(0)
 
 class GaussianNoise:
+    """
+    Gaussian noise for trait values.
+    
+    Adds :math:`N(\\mu,\\sigma)` to trait values.
+    """
     def __init__(self,rng,sd,mean=0.0):
+        """
+        :param rng: A :class:`fwdpy11.GSLrng`
+        :param sd: :math:`\\sigma`
+        :param mean: (0.0) :math:`\\mu`
+        """
         self.sd=sd
         self.mean=mean
         self.rng=rng
