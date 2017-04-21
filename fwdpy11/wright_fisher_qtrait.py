@@ -95,7 +95,7 @@ class GaussianNoise:
 
 def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
         mu_selected,recrate,nregions,sregions,recregions,trait_model,
-        recorder,trait_to_fitness=GSS(1,0.0),noise=None,selfing_rate = 0.):
+        trait_to_fitness=GSS(1,0.0),recorder=None,noise=None,selfing_rate = 0.):
 
     """
     Evolve a single deme according to a Wright-Fisher life cycle 
@@ -124,20 +124,17 @@ def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
     :param sregions: A list of :class:`fwdpy11.regions.Sregion`.
     :param recregions: A list of :class:`fwdpy11.regions.Region`.
     :param trait_model: A :class:`fwdpy11.fitness.SpopFitness`.
-    :param recorder: A callable to record data from the population.
-    :param environments: A list of environmental conditions (see below).
-    :param selfing_rate: (default 0.0) The probability than an individual selfs.
+    :param trait_to_fitness: (fwdpy11.wright_fisher_qtrait.GSS(0,0,0)) A callable relating trait value to fitness.
+    :param recorder: (None) A callable to record data from the population.
+    :param noise: (None) A callable for adding random effects to trait values.
 
-    The environmental conditions are specified by a list of tuples containing
-    four elements each.  These elements are:
 
-    * Generation.  
-    * optimum, the optimum trait value.
-    * VS, the intensity of selection against deviations from the optimum trait value.
-    * :math:`\sigma_e`, the standard deviation of random noise added to trait value.
+    .. note::
+        If recorder is None, fwdpy11.temporal_samplers.RecordNothing will be used.
 
-    When the population's generation first becomes :math:`\geq` `Generation`, then 
-    the values for `optimum`, `VS` and :math:`\sigma_e` are applied.
+    .. note::
+        If noise is None, fwdpy11.wright_fisher_qtrait.GaussianNoise will be used with mean and 
+        standard deviation both set to zero.
     """
     from .internal import makeMutationRegions,makeRecombinationRegions
     from functools import partial
@@ -151,6 +148,9 @@ def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
         updater = partial(type(trait_to_fitness).update,trait_to_fitness)
     if hasattr(noise,'update'):
         noise_updater = partial(type(noise).update,noise)
+    if recorder is None:
+        from fwdpy11.temporal_samplers import RecordNothing
+        recorder = RecordNothing()
     evolve_singlepop_regions_qtrait_cpp(rng,pop,popsizes,mu_neutral,
             mu_selected,recrate,mm,rm,trait_model,recorder,selfing_rate,
             trait_to_fitness,updater,noise,noise_updater)
