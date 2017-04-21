@@ -46,5 +46,11 @@ PYBIND11_PLUGIN(gsl_random)
           },
           "Unform deviate on interval [a,b)");
 
+    m.def("gsl_ran_poisson",
+          [](const fwdpy11::GSLrng_t& rng, double mean) {
+              return gsl_ran_poisson(rng.get(), mean);
+          },
+          "Poisson deviate parameterized by mean.");
+
     return m.ptr();
 }
