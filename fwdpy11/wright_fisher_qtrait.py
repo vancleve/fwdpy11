@@ -96,7 +96,7 @@ class GaussianNoise:
         self.mean=mean
         self.rng=rng
 
-    def __call__(self,parent1,parent2):
+    def __call__(self,g,parent1,parent2):
         return self.mean+fwdpy11.gsl_random.gsl_ran_gaussian_ziggurat(self.rng,self.sd) 
 
 ##END LINE NUMBER EMBARGO##

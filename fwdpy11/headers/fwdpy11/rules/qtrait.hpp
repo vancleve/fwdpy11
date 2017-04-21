@@ -26,15 +26,15 @@ namespace fwdpy11
         {
             using base_t = fwdpy11::single_region_rules_base;
             std::function<double(double)> trait_to_fitness;
-            std::function<double(const fwdpy11::diploid_t &,
+            std::function<double(const double g, const fwdpy11::diploid_t &,
                                  const fwdpy11::diploid_t &)>
                 noise_function;
             double sigE;
-            qtrait_model_rules(
-                std::function<double(double)> t2f,
-                std::function<double(const fwdpy11::diploid_t &,
-                                     const fwdpy11::diploid_t &)>
-                    noise) noexcept(false)
+            qtrait_model_rules(std::function<double(double)> t2f,
+                               std::function<double(
+                                   const double g, const fwdpy11::diploid_t &,
+                                   const fwdpy11::diploid_t &)>
+                                   noise) noexcept(false)
                 : base_t(), trait_to_fitness(std::move(t2f)),
                   noise_function(std::move(noise))
             /*!
@@ -79,7 +79,7 @@ namespace fwdpy11
                    const singlepop_fitness_fxn &ff) noexcept
             {
                 offspring.g = ff(offspring, gametes, mutations);
-                offspring.e = noise_function(parent1, parent2);
+                offspring.e = noise_function(offspring.g, parent1, parent2);
                 offspring.w = trait_to_fitness(offspring.g + offspring.e);
                 assert(std::isfinite(offspring.w));
                 return;
