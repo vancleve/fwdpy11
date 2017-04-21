@@ -26,10 +26,17 @@ namespace fwdpy11
         {
             using base_t = fwdpy11::single_region_rules_base;
             std::function<double(double)> trait_to_fitness;
-            std::function<double(void)> noise_function;
+            std::function<double(const fwdpy11::diploid_t &,
+                                 const fwdpy11::diploid_t &)>
+                noise_function;
             double sigE;
-            qtrait_model_rules(std::function<double(double)> t2f, std::function<double(void)> noise) noexcept(false)
-                : base_t(),trait_to_fitness(std::move(t2f)),noise_function(std::move(noise))
+            qtrait_model_rules(
+                std::function<double(double)> t2f,
+                std::function<double(const fwdpy11::diploid_t &,
+                                     const fwdpy11::diploid_t &)>
+                    noise) noexcept(false)
+                : base_t(), trait_to_fitness(std::move(t2f)),
+                  noise_function(std::move(noise))
             /*!
               Constructor throws std::runtime_error if params are not valid.
             */
@@ -66,14 +73,14 @@ namespace fwdpy11
             //! \brief Update some property of the offspring based on
             //! properties of the parents
             virtual void
-            update(const gsl_rng *r, diploid_t &offspring, const diploid_t &,
-                   const diploid_t &, const gcont_t &gametes,
-                   const mcont_t &mutations,
+            update(const gsl_rng *r, diploid_t &offspring,
+                   const diploid_t &parent1, const diploid_t &parent2,
+                   const gcont_t &gametes, const mcont_t &mutations,
                    const singlepop_fitness_fxn &ff) noexcept
             {
                 offspring.g = ff(offspring, gametes, mutations);
-                offspring.e = noise_function();
-                offspring.w = trait_to_fitness(offspring.g+offspring.e);
+                offspring.e = noise_function(parent1, parent2);
+                offspring.w = trait_to_fitness(offspring.g + offspring.e);
                 assert(std::isfinite(offspring.w));
                 return;
             }

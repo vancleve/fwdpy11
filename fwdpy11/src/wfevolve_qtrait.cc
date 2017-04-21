@@ -57,7 +57,8 @@ evolve_singlepop_regions_qtrait_cpp(
     fwdpy11::singlepop_temporal_sampler recorder, const double selfing_rate,
     std::function<double(double)> trait_to_fitness,
     py::object trait_to_fitness_updater,
-    std::function<double(void)> gaussian_noise)
+    std::function<double(const fwdpy11::diploid_t &, const fwdpy11::diploid_t)> noise,
+    py::object noise_updater)
 {
 
     bool updater_exists = false;
@@ -67,6 +68,13 @@ evolve_singlepop_regions_qtrait_cpp(
             updater = py::function(trait_to_fitness_updater);
             updater_exists=true;
         }
+    bool noise_updater_exists = false;
+    py::function noise_updater_fxn;
+    if(noise_updater != py::none())
+    {
+        noise_updater_fxn=noise_updater;
+        noise_updater_exists=true;
+    }
     const auto generations = popsizes.size();
     if (!generations)
         throw std::runtime_error("empty list of population sizes");
@@ -113,7 +121,7 @@ evolve_singlepop_regions_qtrait_cpp(
         mu_selected, &pop.generation);
     ++pop.generation;
     auto rules = fwdpy11::qtrait::qtrait_model_rules(trait_to_fitness,
-                                                     gaussian_noise);
+                                                     noise);
     // generate FIFO queue of env changes
     // std::queue<env> env_q(std::deque<env>(environmental_changes.begin(),
     //                                      environmental_changes.end()));
@@ -145,7 +153,11 @@ evolve_singlepop_regions_qtrait_cpp(
             recorder(pop);
             if(updater_exists)
             {
-                updater(generation);
+                updater(pop.generation);
+            }
+            if(noise_updater_exists)
+            {
+                noise_updater_fxn(pop.generation);
             }
         }
     --pop.generation;

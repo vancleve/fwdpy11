@@ -75,7 +75,7 @@ class GaussianNoise:
     def __init__(self,sd,rng):
         self.sd=sd
         self.rng=rng
-    def __call__(self):
+    def __call__(self,parent1,parent2):
         return 0.
 
 ##END LINE NUMBER EMBARGO##
@@ -133,9 +133,11 @@ def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
     mm=makeMutationRegions(nregions,sregions)
     rm=makeRecombinationRegions(recregions)
     updater = None
+    noise_updater = None
     if hasattr(trait_to_fitness,'update'):
-        print("true")
         updater = partial(type(trait_to_fitness).update,trait_to_fitness)
+    if hasattr(noise,'update'):
+        noise_updater = partial(type(noise).update,noise)
     evolve_singlepop_regions_qtrait_cpp(rng,pop,popsizes,mu_neutral,
             mu_selected,recrate,mm,rm,trait_model,recorder,selfing_rate,
-            trait_to_fitness,updater,noise)
+            trait_to_fitness,updater,noise,noise_updater)
