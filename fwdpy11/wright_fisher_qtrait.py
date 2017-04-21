@@ -1,4 +1,5 @@
 from .wfevolve_qtrait import evolve_singlepop_regions_qtrait_cpp
+import fwdpy11.gsl_random
 import math
 
 #Note: making changes until "END LINE NUMBER EMBARGO"
@@ -76,7 +77,7 @@ class GaussianNoise:
         self.sd=sd
         self.rng=rng
     def __call__(self,parent1,parent2):
-        return 0.
+        return fwdpy11.gsl_random.gsl_ran_gaussian_ziggurat(self.rng,self.sd) 
 
 ##END LINE NUMBER EMBARGO##
 
