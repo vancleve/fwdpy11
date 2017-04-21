@@ -56,6 +56,7 @@ evolve_singlepop_regions_qtrait_cpp(
     fwdpy11::singlepop_fitness& fitness,
     fwdpy11::singlepop_temporal_sampler recorder, const double selfing_rate,
     std::function<double(double)> trait_to_fitness,
+    std::function<void(KTfwd::uint_t)> trait_to_fitness_updater,
     std::function<double(void)> gaussian_noise)
 {
     const auto generations = popsizes.size();
@@ -133,6 +134,7 @@ evolve_singlepop_regions_qtrait_cpp(
                                     pop.fixation_times, pop.mut_lookup,
                                     pop.mcounts, generation, 2 * pop.N);
             recorder(pop);
+            trait_to_fitness_updater(pop.generation);
         }
     --pop.generation;
 }
