@@ -73,11 +73,13 @@ class GSSmo:
             self.env = self.optima.pop(0)
 
 class GaussianNoise:
-    def __init__(self,sd,rng):
+    def __init__(self,rng,sd,mean=0.0):
         self.sd=sd
+        self.mean=mean
         self.rng=rng
+
     def __call__(self,parent1,parent2):
-        return fwdpy11.gsl_random.gsl_ran_gaussian_ziggurat(self.rng,self.sd) 
+        return self.mean+fwdpy11.gsl_random.gsl_ran_gaussian_ziggurat(self.rng,self.sd) 
 
 ##END LINE NUMBER EMBARGO##
 
@@ -130,7 +132,7 @@ def evolve_regions_sampler_fitness(rng,pop,popsizes,mu_neutral,
     from .internal import makeMutationRegions,makeRecombinationRegions
     from functools import partial
     if noise is None:
-        noise = GaussianNoise(0.,rng)
+        noise = GaussianNoise(rng,0.)
     mm=makeMutationRegions(nregions,sregions)
     rm=makeRecombinationRegions(recregions)
     updater = None
