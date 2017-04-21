@@ -52,5 +52,11 @@ PYBIND11_PLUGIN(gsl_random)
           },
           "Poisson deviate parameterized by mean.");
 
+    m.def("gsl_ran_geometric",
+          [](const fwdpy11::GSLrng_t& rng, const double p) {
+              return gsl_ran_geometric(rng.get(), p);
+          },
+          "Geometric distribution parameterized by success probability.");
+
     return m.ptr();
 }
