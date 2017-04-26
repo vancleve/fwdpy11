@@ -18,11 +18,11 @@
  */
 // clang-format off
 <% 
-setup_pybind11(cfg) 
 #import fwdpy11 so we can find its C++ headers
 import fwdpy11 as fp11 
 #add fwdpy11 header locations to the include path
 cfg['include_dirs'] = [ fp11.get_includes(), fp11.get_fwdpp_includes() ] 
+setup_pybind11(cfg) 
 #On OS X using clang, there is more work to do.  Using gcc on OS X
 #gets rid of these requirements. The specifics sadly depend on how
 #you initially built fwdpy11, and what is below assumes you used
@@ -35,6 +35,8 @@ cfg['include_dirs'] = [ fp11.get_includes(), fp11.get_fwdpp_includes() ]
 // clang-format on
 
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/stl_bind.h>
 #include <fwdpy11/types.hpp>
 #include <fwdpy11/fitness/fitness.hpp>
 
@@ -95,10 +97,11 @@ struct snowdrift : public fwdpy11::singlepop_fitness
  */
 {
     double b1, b2, c1, c2;
+    double initp;
     std::vector<double> phenotypes;
 
-    snowdrift(double b1_, double b2_, double c1_, double c2_)
-        : b1(b1_), b2(b2_), c1(c1_), c2(c2_), phenotypes(std::vector<double>())
+    snowdrift(double b1_, double b2_, double c1_, double c2_, double initp_)
+        : b1(b1_), b2(b2_), c1(c1_), c2(c2_), initp(initp_), phenotypes(std::vector<double>())
     {
     }
 
@@ -128,8 +131,13 @@ struct snowdrift : public fwdpy11::singlepop_fitness
             {
                 //A diploid tracks its index via 
                 //fwdpy11::diploid_t::label
-                phenotypes[dip.label] = KTfwd::additive_diploid()(
-                    dip, pop.gametes, pop.mutations, 2.0);
+	      phenotypes[dip.label] =
+		std::min(1.0,
+			 std::max(0.0,
+				  KTfwd::additive_diploid()(dip,
+							    pop.gametes,
+							    pop.mutations,
+							    2.0) - 1.0 + initp));
             }
     };
 };
@@ -147,8 +155,9 @@ PYBIND11_PLUGIN(snowdrift)
 
     //Create a Python class based on our new type
     py::class_<snowdrift, fwdpy11::singlepop_fitness>(m, "SpopSnowdrift")
-        .def(py::init<double, double, double, double>(), py::arg("b1"),
-             py::arg("b2"), py::arg("c1"), py::arg("c2"));
+        .def(py::init<double, double, double, double, double>(), py::arg("b1"),
+             py::arg("b2"), py::arg("c1"), py::arg("c2"), py::arg("initp"))
+      .def_readwrite("phenotypes", &snowdrift::phenotypes, "snowdrift phenotypes");
 
     return m.ptr();
 }
