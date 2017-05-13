@@ -39,7 +39,8 @@ setup_pybind11(cfg)
 #include <pybind11/stl_bind.h>
 #include <fwdpy11/types.hpp>
 #include <fwdpy11/fitness/fitness.hpp>
-
+#include <gsl/gsl_rng.h>
+    
 namespace py = pybind11;
 
 struct snowdrift_diploid
@@ -49,35 +50,55 @@ struct snowdrift_diploid
 {
     using result_type = double;
     inline result_type
-    operator()(const fwdpy11::diploid_t &dip, const fwdpy11::gcont_t &,
-               const fwdpy11::mcont_t &, const std::vector<double> &phenotypes,
-               const double b1, const double b2, const double c1,
-               const double c2) const
-    /* The first 3 arguments will be passed in from fwdpp.
+    operator()(const fwdpy11::GSLrng_t& rng,
+	       const fwdpy11::diploid_t &dip, const fwdpy11::gcont_t &gam,
+               const fwdpy11::mcont_t &mut, const std::vector<double> &phenotypes,
+               const double b1, const double b2,
+	       const double c1, const double c2) const
+    /* The diploid, gamete, and mutation arguments will be passed in from fwdpp.
      * The phenotypes are the stateful part, and will get
      * passed in by reference.  The remaining params
      * define the payoff function and are also supplied externally.
      */
     {
+      
         auto N = phenotypes.size();
+	auto sqN = std::floor(std::sqrt(N));
         //A diploid tracks its index via 
         //fwdpy11::diploid_t::label, which 
         //is std::size_t.
         auto i = dip.label;
         double zself = phenotypes[i];
         result_type fitness = 0;
-        for (std::size_t j = 0; j < N; ++j)
-            {
-                if (i != j)
-                    {
-                        double zpair = zself + phenotypes[j];
-                        // Payoff function from Fig 1
-                        double a = b1 * zpair + b2 * zpair * zpair - c1 * zself
-                                   - c2 * zself * zself;
-                        fitness += 1 + std::max(a, 0.0);
-                    }
-            }
-        return fitness / double(N - 1);
+
+	// // Loop through sqrt(N) random partners
+        // for (std::size_t j = 0; j < sqN; ++j) {
+	//     std::size_t k = gsl_rng_uniform_int(rng.get(), N-1);
+	//     if (k >= i) {
+	// 	++k;
+	//     }
+	//     double zpair = zself + phenotypes[k];
+	//     // Payoff function from Fig 1 of Doebeli, Hauert & Killingback (2004, Science)
+	//     fitness += 1 + b1 * zpair + b2 * zpair * zpair
+	// 	- c1 * zself - c2 * zself * zself;
+	// }
+
+	// return std::max(fitness, 0.0) / double(sqN);
+
+	// std::size_t k = gsl_rng_uniform_int(rng.get(), N-1);
+	// if (k >= i) {
+	//     ++k;
+	// }	
+	// double zpair = zself + phenotypes[k];
+	// // Payoff function from Fig 1 of Doebeli, Hauert & Killingback (2004, Science)
+	// fitness += 1 + b1 * zpair + b2 * zpair * zpair
+	//     - c1 * zself - c2 * zself * zself;
+
+       	// return std::max(fitness, 0.0);
+
+	return 1.0 / (1.0 + std::exp(-b1*zself));
+
+	// return KTfwd::additive_diploid()(dip,gam,mut,2.0);
     }
 };
 
@@ -96,15 +117,19 @@ struct snowdrift : public fwdpy11::singlepop_fitness
  * calculated using fwdpp's machinery.
  */
 {
+    const fwdpy11::GSLrng_t& rng;
     double b1, b2, c1, c2;
-    double initp;
+    double sigslope;
+    double pheno0;
     std::vector<double> phenotypes;
-
-    snowdrift(double b1_, double b2_, double c1_, double c2_, double initp_)
-        : b1(b1_), b2(b2_), c1(c1_), c2(c2_), initp(initp_), phenotypes(std::vector<double>())
+    
+    snowdrift(const fwdpy11::GSLrng_t& rng_,
+	      double b1_, double b2_, double c1_, double c2_, double sigslope_, double pheno0_)
+	: rng(rng_), b1(b1_), b2(b2_), c1(c1_), c2(c2_), sigslope(sigslope_), pheno0(pheno0_),
+	  phenotypes(std::vector<double>())
     {
     }
-
+    
     inline fwdpy11::singlepop_fitness_fxn
     callback() const final
     // A stateful fitness model must return a bound callable.
@@ -114,8 +139,8 @@ struct snowdrift : public fwdpy11::singlepop_fitness
          * we use std::cref to make sure that phenotypes are 
          * passed as const reference.
          */
-        return std::bind(snowdrift_diploid(), std::placeholders::_1,
-                         std::placeholders::_2, std::placeholders::_3,
+        return std::bind(snowdrift_diploid(), std::cref(rng),
+			 std::placeholders::_1, std::placeholders::_2, std::placeholders::_3,
                          std::cref(phenotypes), b1, b2, c1, c2);
     }
     void
@@ -124,21 +149,41 @@ struct snowdrift : public fwdpy11::singlepop_fitness
      * The base class defines this virtual function
      * to do nothing (for non-stateful models). 
      * Here, we redefine it as needed.
+     * 
+     * Phenotype function is sigmoidal.
+     * * sigslope is slope of sigmoid
+     * * pheno0 is phenotype value at zero mutant value 
      */
     {
+	using __mtype = typename fwdpy11::mcont_t::value_type;
+	
+        double summut;
+	double sig0;
         phenotypes.resize(pop.N);
         for (auto &&dip : pop.diploids)
-            {
-                //A diploid tracks its index via 
-                //fwdpy11::diploid_t::label
-	      phenotypes[dip.label] =
-		std::min(1.0,
-			 std::max(0.0,
-				  KTfwd::additive_diploid()(dip,
-							    pop.gametes,
-							    pop.mutations,
-							    2.0) - 1.0 + initp));
-            }
+        {
+
+	    summut =
+		KTfwd::site_dependent_fitness()(
+		    pop.gametes[dip.first], pop.gametes[dip.second], pop.mutations,
+		    [&](double &fitness, const __mtype &mut) {
+			fitness += (2.0 * mut.s);
+		    },
+		    [&](double &fitness, const __mtype &mut) {
+			fitness += (mut.h * mut.s);
+		    },
+		    0.);
+		
+	    // summut = KTfwd::additive_diploid()(dip,
+	    // 					 pop.gametes,
+	    // 					 pop.mutations,
+	    // 					 2.0) - 1;
+	    
+	    // sig0 = 1.0 / sigslope * std::log(pheno0 / (1 - pheno0));
+	    // phenotypes[dip.label] = 1.0 / (1.0 + std::exp( - sigslope * (summut + sig0)));
+
+	    phenotypes[dip.label] = summut;
+        }
     };
 };
 
@@ -155,9 +200,11 @@ PYBIND11_PLUGIN(snowdrift)
 
     //Create a Python class based on our new type
     py::class_<snowdrift, fwdpy11::singlepop_fitness>(m, "SpopSnowdrift")
-        .def(py::init<double, double, double, double, double>(), py::arg("b1"),
-             py::arg("b2"), py::arg("c1"), py::arg("c2"), py::arg("initp"))
-      .def_readwrite("phenotypes", &snowdrift::phenotypes, "snowdrift phenotypes");
+	.def(py::init<const fwdpy11::GSLrng_t&, double, double, double, double, double, double>(),
+	     py::arg("rng"), py::arg("b1"), py::arg("b2"), py::arg("c1"), py::arg("c2"),
+	     py::arg("sigslope"), py::arg("pheno0"))
+        .def_readwrite("phenotypes", &snowdrift::phenotypes, "snowdrift phenotypes")
+	.def("update", &snowdrift::update, py::arg("pop"));
 
     return m.ptr();
 }
