@@ -47,38 +47,42 @@ namespace fwdpy11
 
             qtrait_model_rules(const qtrait_model_rules &rhs) : base_t(rhs) {}
 
-            virtual void
-            w(const dipvector_t &diploids, gcont_t &gametes,
-              const mcont_t &mutations)
+            virtual double
+            w(singlepop_t &pop, const single_locus_fitness_fxn &ff)
             {
-                auto N_curr = diploids.size();
+                auto N_curr = pop.diploids.size();
                 if (fitnesses.size() < N_curr)
                     fitnesses.resize(N_curr);
                 wbar = 0.;
                 for (size_t i = 0; i < N_curr; ++i)
                     {
-                        gametes[diploids[i].first].n
-                            = gametes[diploids[i].second].n = 0;
-                        fitnesses[i] = diploids[i].w;
-                        wbar += diploids[i].w;
+                        // gametes[diploids[i].first].n
+                        //    = gametes[diploids[i].second].n = 0;
+                        // fitnesses[i] = diploids[i].w;
+                        pop.diploids[i].g
+                            = ff(pop.diploids[i], pop.gametes, pop.mutations);
+                        pop.diploids[i].w = trait_to_fitness(
+                            pop.diploids[i].g + pop.diploids[i].e);
+                        assert(std::isfinite(pop.diploids[i].w));
+                        wbar += pop.diploids[i].w;
                     }
                 wbar /= double(N_curr);
                 lookup = KTfwd::fwdpp_internal::gsl_ran_discrete_t_ptr(
                     gsl_ran_discrete_preproc(N_curr, &fitnesses[0]));
+                return wbar;
             }
 
             //! \brief Update some property of the offspring based on
             //! properties of the parents
             virtual void
-            update(const gsl_rng *r, diploid_t &offspring,
-                   const diploid_t &parent1, const diploid_t &parent2,
-                   const gcont_t &gametes, const mcont_t &mutations,
-                   const single_locus_fitness_fxn &ff) noexcept
+            update(const GSLrng_t &rng, diploid_t &offspring,
+                   const singlepop_t &pop, const std::size_t p1,
+                   const std::size_t p2) noexcept
             {
-                offspring.g = ff(offspring, gametes, mutations);
-                offspring.e = noise_function(offspring.g, parent1, parent2);
-                offspring.w = trait_to_fitness(offspring.g + offspring.e);
-                assert(std::isfinite(offspring.w));
+                // offspring.g = ff(offspring, gametes, mutations);
+                offspring.e = noise_function(offspring.g, pop.diploids[p1],
+                                             pop.diploids[p2]);
+                // offspring.w = trait_to_fitness(offspring.g + offspring.e);
                 return;
             }
         };
@@ -105,8 +109,7 @@ namespace fwdpy11
                               noise_function_signature nf)
                 : wbar(0.), aggregator{ std::move(ag) },
                   trait_to_fitness{ std::move(t2f) },
-                  noise_function{ std::move(nf) },
-				  fitnesses{}
+                  noise_function{ std::move(nf) }, fitnesses{}
             {
             }
 

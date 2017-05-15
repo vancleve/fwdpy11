@@ -27,7 +27,6 @@
 #include <cmath>
 #include <stdexcept>
 #include <fwdpp/diploid.hh>
-#include <fwdpp/experimental/sample_diploid.hpp>
 #include <fwdpp/experimental/sample_diploid_mloc.hpp>
 #include <fwdpp/sugar/GSLrng_t.hpp>
 #include <fwdpp/extensions/regions.hpp>
@@ -35,6 +34,7 @@
 #include <fwdpy11/fitness/fitness.hpp>
 #include <fwdpy11/rules/qtrait.hpp>
 #include <fwdpy11/sim_functions.hpp>
+#include <fwdpy11/evolve/slocuspop.hpp>
 
 namespace py = pybind11;
 
@@ -122,29 +122,29 @@ evolve_singlepop_regions_qtrait_cpp(
     for (unsigned generation = 0; generation < generations;
          ++generation, ++pop.generation)
         {
-            // if (!env_q.empty())
-            //    {
-            //        auto next_env = env_q.front();
-            //        if (pop.generation >= std::get<GEN>(next_env))
-            //            {
-            //                rules.optimum = std::get<OPTIMUM>(next_env);
-            //                rules.VS = std::get<VS>(next_env);
-            //                rules.sigE = std::get<SIGE>(next_env);
-            //                env_q.pop();
-            //            }
-            //    }
             fitness.update(pop);
             const auto N_next = popsizes.at(generation);
-            double wbar = KTfwd::experimental::sample_diploid(
-                rng.get(), pop.gametes, pop.diploids, pop.mutations,
-                pop.mcounts, pop.N, N_next, mu_neutral + mu_selected, mmodels,
-                recmap, fitness_callback, pop.neutral, pop.selected,
-                selfing_rate, rules, KTfwd::remove_neutral());
+            double wbar = fwdpy11::evolve_generation(
+                rng, pop, N_next, recorder, mu_neutral + mu_selected, mmodels,
+                recmap, fitness_callback,
+                std::bind(&fwdpy11::qtrait::qtrait_model_rules::w, &rules,
+                          std::placeholders::_1, std::placeholders::_2),
+                std::bind(&fwdpy11::qtrait::qtrait_model_rules::pick1, &rules,
+                          std::placeholders::_1, std::placeholders::_2),
+                std::bind(&fwdpy11::qtrait::qtrait_model_rules::pick2, &rules,
+                          std::placeholders::_1, std::placeholders::_2,
+                          std::placeholders::_3, selfing_rate),
+                std::bind(&fwdpy11::qtrait::qtrait_model_rules::update, &rules,
+                          std::placeholders::_1, std::placeholders::_2,
+                          std::placeholders::_3, std::placeholders::_4,
+                          std::placeholders::_5),
+                KTfwd::remove_neutral());
+
             pop.N = N_next;
             fwdpy11::update_mutations_n(
                 pop.mutations, pop.fixations, pop.fixation_times,
                 pop.mut_lookup, pop.mcounts, pop.generation, 2 * pop.N);
-            recorder(pop);
+
             if (updater_exists)
                 {
                     updater(pop.generation);
@@ -155,6 +155,13 @@ evolve_singlepop_regions_qtrait_cpp(
                 }
         }
     --pop.generation;
+    // final update to ensure
+    // correct fitnesses upone return
+    fitness.update(pop);
+    for (auto &dip : pop.diploids)
+        {
+            dip.w = rules.trait_to_fitness(dip.g + dip.e);
+        }
 }
 
 void
