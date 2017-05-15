@@ -27,7 +27,7 @@
 #include <cmath>
 #include <stdexcept>
 #include <fwdpp/diploid.hh>
-#include <fwdpp/experimental/sample_diploid_mloc.hpp>
+//#include <fwdpp/experimental/sample_diploid_mloc.hpp>
 #include <fwdpp/sugar/GSLrng_t.hpp>
 #include <fwdpp/extensions/regions.hpp>
 #include <fwdpy11/samplers.hpp>
@@ -35,6 +35,7 @@
 #include <fwdpy11/rules/qtrait.hpp>
 #include <fwdpy11/sim_functions.hpp>
 #include <fwdpy11/evolve/slocuspop.hpp>
+#include <fwdpy11/evolve/mlocuspop.hpp>
 
 namespace py = pybind11;
 
@@ -218,12 +219,28 @@ evolve_qtrait_mloc_regions_cpp(
     for (unsigned i = 0; i < generations; ++i, ++pop.generation)
         {
             auto N_next = popsizes.at(i);
-            auto wbar = KTfwd::experimental::sample_diploid(
-                rng.get(), pop.gametes, pop.diploids, pop.mutations,
-                pop.mcounts, pop.N, N_next, total_mut_rates.data(),
-                bound_mmodels, bound_intralocus_rec, interlocus_rec,
-                multilocus_gvalue, pop.neutral, pop.selected, selfing_rate,
-                rules, KTfwd::remove_neutral());
+            auto wbar = fwdpy11::evolve_generation(
+                rng, pop, N_next, recorder, total_mut_rates, bound_mmodels,
+                bound_intralocus_rec, interlocus_rec, multilocus_gvalue,
+                std::bind(&fwdpy11::qtrait::qtrait_mloc_rules::w, &rules,
+                          std::placeholders::_1, std::placeholders::_2),
+                std::bind(&fwdpy11::qtrait::qtrait_mloc_rules::pick1, &rules,
+                          std::placeholders::_1, std::placeholders::_2),
+                std::bind(&fwdpy11::qtrait::qtrait_mloc_rules::pick2, &rules,
+                          std::placeholders::_1, std::placeholders::_2,
+                          std::placeholders::_3, selfing_rate),
+                std::bind(&fwdpy11::qtrait::qtrait_mloc_rules::update, &rules,
+                          std::placeholders::_1, std::placeholders::_2,
+                          std::placeholders::_3, std::placeholders::_4,
+                          std::placeholders::_5),
+                KTfwd::remove_neutral());
+
+            // auto wbar = KTfwd::experimental::sample_diploid(
+            //    rng.get(), pop.gametes, pop.diploids, pop.mutations,
+            //    pop.mcounts, pop.N, N_next, total_mut_rates.data(),
+            //    bound_mmodels, bound_intralocus_rec, interlocus_rec,
+            //    multilocus_gvalue, pop.neutral, pop.selected, selfing_rate,
+            //    rules, KTfwd::remove_neutral());
             pop.N = N_next;
             fwdpy11::update_mutations_n(
                 pop.mutations, pop.fixations, pop.fixation_times,
@@ -239,6 +256,11 @@ evolve_qtrait_mloc_regions_cpp(
                 }
         }
     --pop.generation;
+    for (auto &dip : pop.diploids)
+        {
+            dip[0].g = aggregator(multilocus_gvalue(dip, pop.gametes, pop.mutations));
+            dip[0].w = rules.trait_to_fitness(dip[0].g + dip[0].e);
+        }
 }
 
 PYBIND11_PLUGIN(wfevolve_qtrait)

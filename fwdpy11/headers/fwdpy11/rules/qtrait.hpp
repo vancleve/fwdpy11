@@ -33,7 +33,7 @@ namespace fwdpy11
             qtrait_model_rules(const qtrait_model_rules &rhs) : base_t(rhs) {}
 
             virtual double
-            w(singlepop_t &pop, const std::function<double(double)> & trait_to_fitness)
+            w(singlepop_t &pop, const single_locus_fitness_fxn &ff)
             {
                 auto N_curr = pop.diploids.size();
                 if (fitnesses.size() < N_curr)
@@ -104,29 +104,25 @@ namespace fwdpy11
             }
 
             //! \brief The "fitness manager"
-            void
-            w(const multilocus_t::dipvector_t &diploids, gcont_t &gametes,
-              const mcont_t &mutations) const
+            double
+            w(multilocus_t &pop, const multilocus_genetic_value &gvalue) const
             {
-                unsigned N_curr = diploids.size();
+                unsigned N_curr = pop.diploids.size();
                 if (fitnesses.size() < N_curr)
                     fitnesses.resize(N_curr);
                 wbar = 0.;
 
                 for (unsigned i = 0; i < N_curr; ++i)
                     {
-                        for (auto region : diploids[i])
-                            {
-                                gametes[region.first].n
-                                    = gametes[region.second].n = 0;
-                            }
-
-                        // the g/e/w fields will be populated via update()
-                        fitnesses[i] = diploids[i][0].w;
+                        pop.diploids[i][0].g = aggregator(gvalue(
+                            pop.diploids[i], pop.gametes, pop.mutations));
+                        pop.diploids[i][0].w = trait_to_fitness(
+                            pop.diploids[i][0].g + pop.diploids[i][0].e);
+                        fitnesses[i] = pop.diploids[i][0].w;
                         wbar += fitnesses[i];
                     }
 
-                wbar /= double(diploids.size());
+                wbar /= double(N_curr);
 
                 /*!
                   Black magic alert:
@@ -143,41 +139,37 @@ namespace fwdpy11
                 */
                 lookup = KTfwd::fwdpp_internal::gsl_ran_discrete_t_ptr(
                     gsl_ran_discrete_preproc(N_curr, &fitnesses[0]));
+                return wbar;
             }
 
             //! \brief Pick parent one
             inline size_t
-            pick1(const gsl_rng *r) const
+            pick1(const GSLrng_t &rng, const multilocus_t &pop) const
             {
-                return gsl_ran_discrete(r, lookup.get());
+                return gsl_ran_discrete(rng.get(), lookup.get());
             }
 
             //! \brief Pick parent 2.  Parent 1's data are passed along for
             //! models where that is relevant
             inline size_t
-            pick2(const gsl_rng *r, const size_t p1, const double f,
-                  const fwdpy11::multilocus_diploid_t &,
-                  const fwdpy11::gcont_t &, const fwdpy11::mcont_t &) const
+            pick2(const GSLrng_t &rng, const multilocus_t &,
+                  const std::size_t p1, const double f) const
             {
-                return ((f == 1.) || (f > 0. && gsl_rng_uniform(r) < f))
+                return ((f == 1.)
+                        || (f > 0. && gsl_rng_uniform(rng.get()) < f))
                            ? p1
-                           : gsl_ran_discrete(r, lookup.get());
+                           : gsl_ran_discrete(rng.get(), lookup.get());
             }
 
             //! \brief Update some property of the offspring based on
             //! properties of the parents
             void
-            update(const gsl_rng *r, multilocus_diploid_t &offspring,
-                   const multilocus_diploid_t &parent1,
-                   const multilocus_diploid_t &parent2, const gcont_t &gametes,
-                   const mcont_t &mutations,
-                   const multilocus_genetic_value &gv) const
+            update(const GSLrng_t &rng, multilocus_diploid_t &offspring,
+                   const multilocus_t &pop, const std::size_t p1,
+                   const std::size_t p2) const
             {
-                offspring[0].g = aggregator(gv(offspring, gametes, mutations));
-                offspring[0].e
-                    = noise_function(offspring[0].g, parent1, parent2);
-                offspring[0].w
-                    = trait_to_fitness(offspring[0].g + offspring[0].e);
+                offspring[0].e = noise_function(
+                    offspring[0].g, pop.diploids[p1], pop.diploids[p2]);
             }
         };
     } // namespace qtrait

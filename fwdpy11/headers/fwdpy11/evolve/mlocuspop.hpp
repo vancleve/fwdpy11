@@ -1,5 +1,5 @@
-#ifndef FWDPY11_EVOLVE_SLOCUSPOP_HPP__
-#define FWDPY11_EVOLVE_SLOCUSPOP_HPP__
+#ifndef FWDPY11_EVOLVE_MLOCUSPOP_HPP__
+#define FWDPY11_EVOLVE_MLOCUSPOP_HPP__
 
 #include <tuple>
 #include <type_traits>
@@ -15,22 +15,24 @@ namespace fwdpy11
     template <typename poptype, typename mean_fitness_function,
               typename pick1_function, typename pick2_function,
               typename update_function, typename mutation_model,
-              typename recombination_model, typename genetic_value_function,
+              typename recombination_model,
+              typename multilocus_genetic_value_function,
               typename mutation_removal_policy>
     double
     evolve_generation(
         const GSLrng_t& rng, poptype& pop, const KTfwd::uint_t N_next,
-        singlepop_temporal_sampler& sampler, const double mu,
+        multilocus_temporal_sampler& sampler, const std::vector<double> & mu,
         const mutation_model& mmodel, const recombination_model& recmodel,
-        const genetic_value_function& gvalue,
+        const std::vector<std::function<unsigned(void)>>& interlocus_rec,
+        const multilocus_genetic_value_function& gvalue,
         const mean_fitness_function& wbar, const pick1_function& pick1,
         const pick2_function& pick2, const update_function& update,
         const mutation_removal_policy& mrp)
     {
         static_assert(
             std::is_same<typename poptype::popmodel_t,
-                         KTfwd::sugar::SINGLEPOP_TAG>::value,
-            "Population type must be a single-locus, single-deme type.");
+                         KTfwd::sugar::MULTILOCPOP_TAG>::value,
+            "Population type must be a multi-locus, single-deme type.");
 
         auto gamete_recycling_bin
             = KTfwd::fwdpp_internal::make_gamete_queue(pop.gametes);
@@ -61,42 +63,13 @@ namespace fwdpy11
                 auto p1 = pick1(rng, pop);
                 auto p2 = pick2(rng, pop, p1);
 
-                auto p1g1 = pop.diploids[p1].first;
-                auto p1g2 = pop.diploids[p1].second;
-                auto p2g1 = pop.diploids[p2].first;
-                auto p2g2 = pop.diploids[p2].second;
-
-                // Mendel
-                if (gsl_rng_uniform(rng.get()) < 0.5)
-                    std::swap(p1g1, p1g2);
-                if (gsl_rng_uniform(rng.get()) < 0.5)
-                    std::swap(p2g1, p2g2);
-
-                dip.first
-                    = KTfwd::recombination(pop.gametes, gamete_recycling_bin,
-                                           pop.neutral, pop.selected, recmodel,
-                                           p1g1, p1g2, pop.mutations)
-                          .first;
-                dip.second
-                    = KTfwd::recombination(pop.gametes, gamete_recycling_bin,
-                                           pop.neutral, pop.selected, recmodel,
-                                           p2g1, p2g2, pop.mutations)
-                          .first;
-
-                pop.gametes[dip.first].n++;
-                pop.gametes[dip.second].n++;
-
-                // now, add new mutations
-                dip.first = KTfwd::mutate_gamete_recycle(
-                    mutation_recycling_bin, gamete_recycling_bin, rng.get(),
-                    mu, pop.gametes, pop.mutations, dip.first, mmodel,
+                dip = KTfwd::fwdpp_internal::multilocus_rec_mut(
+                    rng.get(), pop.diploids[p1], pop.diploids[p2],
+                    mutation_recycling_bin, gamete_recycling_bin, recmodel,
+                    interlocus_rec, ((gsl_rng_uniform(rng.get()) < 0.5) ? 1 : 0),
+                    ((gsl_rng_uniform(rng.get()) < 0.5) ? 1 : 0), pop.gametes, pop.mutations,
+                    pop.neutral, pop.selected, mu.data(), mmodel,
                     KTfwd::emplace_back());
-                dip.second = KTfwd::mutate_gamete_recycle(
-                    mutation_recycling_bin, gamete_recycling_bin, rng.get(),
-                    mu, pop.gametes, pop.mutations, dip.second, mmodel,
-                    KTfwd::emplace_back());
-
-                assert(pop.gametes[dip.first].n);
                 assert(pop.gametes[dip.second].n);
                 update(rng, dip, pop, p1, p2);
             }
