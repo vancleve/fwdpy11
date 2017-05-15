@@ -6,18 +6,6 @@
 #include <functional>
 #include <cmath>
 #include <gsl/gsl_sf_pow_int.h>
-/*
-  Custom "rules" policy for single-region simulations of traits
-  under Gaussian stabilizing selection.
-
-  This file is partly KT having fun, but also an effort to stress-test fwdpp's
-  "experimental" API.
-
-  The advantage of this struct is:
-  1. An offspring has its G and E values automatically assigned.  This allows
-  us to record the
-  exact fitnesses/heritabilities used in the simulation over time.
-*/
 
 namespace fwdpy11
 {
@@ -37,9 +25,6 @@ namespace fwdpy11
                                    noise) noexcept(false)
                 : base_t(), trait_to_fitness(std::move(t2f)),
                   noise_function(std::move(noise))
-            /*!
-              Constructor throws std::runtime_error if params are not valid.
-            */
             {
             }
 
@@ -48,7 +33,7 @@ namespace fwdpy11
             qtrait_model_rules(const qtrait_model_rules &rhs) : base_t(rhs) {}
 
             virtual double
-            w(singlepop_t &pop, const single_locus_fitness_fxn &ff)
+            w(singlepop_t &pop, const std::function<double(double)> & trait_to_fitness)
             {
                 auto N_curr = pop.diploids.size();
                 if (fitnesses.size() < N_curr)
@@ -56,9 +41,6 @@ namespace fwdpy11
                 wbar = 0.;
                 for (size_t i = 0; i < N_curr; ++i)
                     {
-                        // gametes[diploids[i].first].n
-                        //    = gametes[diploids[i].second].n = 0;
-                        // fitnesses[i] = diploids[i].w;
                         pop.diploids[i].g
                             = ff(pop.diploids[i], pop.gametes, pop.mutations);
                         pop.diploids[i].w = trait_to_fitness(
@@ -79,10 +61,8 @@ namespace fwdpy11
                    const singlepop_t &pop, const std::size_t p1,
                    const std::size_t p2) noexcept
             {
-                // offspring.g = ff(offspring, gametes, mutations);
                 offspring.e = noise_function(offspring.g, pop.diploids[p1],
                                              pop.diploids[p2]);
-                // offspring.w = trait_to_fitness(offspring.g + offspring.e);
                 return;
             }
         };
