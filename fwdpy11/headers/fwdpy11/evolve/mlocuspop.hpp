@@ -21,7 +21,7 @@ namespace fwdpy11
     double
     evolve_generation(
         const GSLrng_t& rng, poptype& pop, const KTfwd::uint_t N_next,
-        multilocus_temporal_sampler& sampler, const std::vector<double> & mu,
+        multilocus_temporal_sampler& sampler, const std::vector<double>& mu,
         const mutation_model& mmodel, const recombination_model& recmodel,
         const std::vector<std::function<unsigned(void)>>& interlocus_rec,
         const multilocus_genetic_value_function& gvalue,
@@ -46,7 +46,7 @@ namespace fwdpy11
         // Call the temporal sampler.
         // All of our data are currently correct.
         sampler(pop);
-
+        
         // Efficiency hit.  Unavoidable
         // in use case of a sampler looking
         // at the gametes themselves (even tho
@@ -66,18 +66,19 @@ namespace fwdpy11
                 dip = KTfwd::fwdpp_internal::multilocus_rec_mut(
                     rng.get(), pop.diploids[p1], pop.diploids[p2],
                     mutation_recycling_bin, gamete_recycling_bin, recmodel,
-                    interlocus_rec, ((gsl_rng_uniform(rng.get()) < 0.5) ? 1 : 0),
-                    ((gsl_rng_uniform(rng.get()) < 0.5) ? 1 : 0), pop.gametes, pop.mutations,
-                    pop.neutral, pop.selected, mu.data(), mmodel,
-                    KTfwd::emplace_back());
-                assert(pop.gametes[dip.second].n);
+                    interlocus_rec,
+                    ((gsl_rng_uniform(rng.get()) < 0.5) ? 1 : 0),
+                    ((gsl_rng_uniform(rng.get()) < 0.5) ? 1 : 0), pop.gametes,
+                    pop.mutations, pop.neutral, pop.selected, mu.data(),
+                    mmodel, KTfwd::emplace_back());
                 update(rng, dip, pop, p1, p2);
             }
 
         KTfwd::fwdpp_internal::process_gametes(pop.gametes, pop.mutations,
                                                pop.mcounts);
         KTfwd::fwdpp_internal::gamete_cleaner(pop.gametes, pop.mutations,
-                                              pop.mcounts, 2 * N_next, mrp);
+                                              pop.mcounts, 2 * N_next, mrp,
+                                              std::true_type());
         // This is constant-time
         pop.diploids.swap(offspring);
 

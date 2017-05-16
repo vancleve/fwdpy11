@@ -245,7 +245,6 @@ evolve_qtrait_mloc_regions_cpp(
             fwdpy11::update_mutations_n(
                 pop.mutations, pop.fixations, pop.fixation_times,
                 pop.mut_lookup, pop.mcounts, pop.generation, 2 * pop.N);
-            recorder(pop);
             if (updater_exists)
                 {
                     updater(pop.generation);
