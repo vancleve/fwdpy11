@@ -161,6 +161,7 @@ evolve_singlepop_regions_qtrait_cpp(
     fitness.update(pop);
     for (auto &dip : pop.diploids)
         {
+            dip.g = fitness_callback(dip,pop.gametes,pop.mutations);
             dip.w = rules.trait_to_fitness(dip.g + dip.e);
         }
 }
