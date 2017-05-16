@@ -47,16 +47,15 @@ evolve_common(const fwdpy11::GSLrng_t& rng, fwdpy11::singlepop_t& pop,
 {
     auto generations = popsizes.size();
     auto fitness_callback = fitness.callback();
+    fitness.update(pop);
+    auto wbar = rules.w(pop, fitness_callback);
     for (unsigned generation = 0; generation < generations;
          ++generation, ++pop.generation)
         {
-            fitness.update(pop);
             const auto N_next = popsizes.at(generation);
-            double wbar = fwdpy11::evolve_generation(
-                rng, pop, N_next, recorder, mu_neutral + mu_selected, mmodels,
-                recmap, fitness_callback,
-                std::bind(&fwdpy11::wf_rules::w, &rules, std::placeholders::_1,
-                          std::placeholders::_2),
+            fwdpy11::evolve_generation(
+                rng, pop, N_next, mu_neutral + mu_selected, mmodels,
+                recmap,
                 std::bind(&fwdpy11::wf_rules::pick1, &rules,
                           std::placeholders::_1, std::placeholders::_2),
                 std::bind(&fwdpy11::wf_rules::pick2, &rules,
@@ -70,12 +69,9 @@ evolve_common(const fwdpy11::GSLrng_t& rng, fwdpy11::singlepop_t& pop,
             pop.N = N_next;
             um(pop.mutations, pop.fixations, pop.fixation_times,
                pop.mut_lookup, pop.mcounts, pop.generation, 2 * pop.N);
-        }
-    // have to update diploid fitnesses one last time
-    fitness.update(pop);
-    for (auto& dip : pop.diploids)
-        {
-            dip.w = dip.g = fitness_callback(dip, pop.gametes, pop.mutations);
+            fitness.update(pop);
+            auto wbar = rules.w(pop, fitness_callback);
+			recorder(pop);
         }
 }
 

@@ -120,16 +120,14 @@ evolve_singlepop_regions_qtrait_cpp(
     // generate FIFO queue of env changes
     // std::queue<env> env_q(std::deque<env>(environmental_changes.begin(),
     //                                      environmental_changes.end()));
+    fitness.update(pop);
+    auto wbar = rules.w(pop, fitness_callback);
     for (unsigned generation = 0; generation < generations;
          ++generation, ++pop.generation)
         {
-            fitness.update(pop);
             const auto N_next = popsizes.at(generation);
-            double wbar = fwdpy11::evolve_generation(
-                rng, pop, N_next, recorder, mu_neutral + mu_selected, mmodels,
-                recmap, fitness_callback,
-                std::bind(&fwdpy11::qtrait::qtrait_model_rules::w, &rules,
-                          std::placeholders::_1, std::placeholders::_2),
+            fwdpy11::evolve_generation(
+                rng, pop, N_next, mu_neutral + mu_selected, mmodels, recmap,
                 std::bind(&fwdpy11::qtrait::qtrait_model_rules::pick1, &rules,
                           std::placeholders::_1, std::placeholders::_2),
                 std::bind(&fwdpy11::qtrait::qtrait_model_rules::pick2, &rules,
@@ -154,16 +152,11 @@ evolve_singlepop_regions_qtrait_cpp(
                 {
                     noise_updater_fxn(pop.generation);
                 }
+            fitness.update(pop);
+            wbar = rules.w(pop, fitness_callback);
+            recorder(pop);
         }
     --pop.generation;
-    // final update to ensure
-    // correct fitnesses upone return
-    fitness.update(pop);
-    for (auto &dip : pop.diploids)
-        {
-            dip.g = fitness_callback(dip,pop.gametes,pop.mutations);
-            dip.w = rules.trait_to_fitness(dip.g + dip.e);
-        }
 }
 
 void
@@ -258,7 +251,8 @@ evolve_qtrait_mloc_regions_cpp(
     --pop.generation;
     for (auto &dip : pop.diploids)
         {
-            dip[0].g = aggregator(multilocus_gvalue(dip, pop.gametes, pop.mutations));
+            dip[0].g = aggregator(
+                multilocus_gvalue(dip, pop.gametes, pop.mutations));
             dip[0].w = rules.trait_to_fitness(dip[0].g + dip[0].e);
         }
 }

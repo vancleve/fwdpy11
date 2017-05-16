@@ -12,20 +12,18 @@
 
 namespace fwdpy11
 {
-    template <typename poptype, typename mean_fitness_function,
-              typename pick1_function, typename pick2_function,
-              typename update_function, typename mutation_model,
-              typename recombination_model, typename genetic_value_function,
+    template <typename poptype, typename pick1_function,
+              typename pick2_function, typename update_function,
+              typename mutation_model, typename recombination_model,
               typename mutation_removal_policy>
-    double
-    evolve_generation(
-        const GSLrng_t& rng, poptype& pop, const KTfwd::uint_t N_next,
-        singlepop_temporal_sampler& sampler, const double mu,
-        const mutation_model& mmodel, const recombination_model& recmodel,
-        const genetic_value_function& gvalue,
-        const mean_fitness_function& wbar, const pick1_function& pick1,
-        const pick2_function& pick2, const update_function& update,
-        const mutation_removal_policy& mrp)
+    void
+    evolve_generation(const GSLrng_t& rng, poptype& pop,
+                      const KTfwd::uint_t N_next, const double mu,
+                      const mutation_model& mmodel,
+                      const recombination_model& recmodel,
+                      const pick1_function& pick1, const pick2_function& pick2,
+                      const update_function& update,
+                      const mutation_removal_policy& mrp)
     {
         static_assert(
             std::is_same<typename poptype::popmodel_t,
@@ -36,14 +34,6 @@ namespace fwdpy11
             = KTfwd::fwdpp_internal::make_gamete_queue(pop.gametes);
         auto mutation_recycling_bin
             = KTfwd::fwdpp_internal::make_mut_queue(pop.mcounts);
-
-        // Responsible for ensuring
-        // that each diploid.w is assigned
-        auto wb = wbar(pop, gvalue);
-
-        // Call the temporal sampler.
-        // All of our data are currently correct.
-        sampler(pop);
 
         // Efficiency hit.  Unavoidable
         // in use case of a sampler looking
@@ -56,6 +46,7 @@ namespace fwdpy11
         decltype(pop.diploids) offspring(N_next);
 
         // Generate the offspring
+        std::size_t label = 0;
         for (auto& dip : offspring)
             {
                 auto p1 = pick1(rng, pop);
@@ -99,6 +90,7 @@ namespace fwdpy11
                 assert(pop.gametes[dip.first].n);
                 assert(pop.gametes[dip.second].n);
                 update(rng, dip, pop, p1, p2);
+                dip.label = label++;
             }
 
         KTfwd::fwdpp_internal::process_gametes(pop.gametes, pop.mutations,
@@ -107,8 +99,6 @@ namespace fwdpy11
                                               pop.mcounts, 2 * N_next, mrp);
         // This is constant-time
         pop.diploids.swap(offspring);
-
-        return wb;
     }
 }
 
