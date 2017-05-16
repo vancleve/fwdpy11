@@ -46,6 +46,7 @@ namespace fwdpy11
                         pop.diploids[i].w = trait_to_fitness(
                             pop.diploids[i].g + pop.diploids[i].e);
                         assert(std::isfinite(pop.diploids[i].w));
+                        fitnesses[i]=pop.diploids[i].w;
                         wbar += pop.diploids[i].w;
                     }
                 wbar /= double(N_curr);
