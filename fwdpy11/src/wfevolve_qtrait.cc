@@ -143,7 +143,9 @@ evolve_singlepop_regions_qtrait_cpp(
             fwdpy11::update_mutations_n(
                 pop.mutations, pop.fixations, pop.fixation_times,
                 pop.mut_lookup, pop.mcounts, pop.generation, 2 * pop.N);
-
+            fitness.update(pop);
+            wbar = rules.w(pop, fitness_callback);
+            recorder(pop);
             if (updater_exists)
                 {
                     updater(pop.generation);
@@ -152,9 +154,6 @@ evolve_singlepop_regions_qtrait_cpp(
                 {
                     noise_updater_fxn(pop.generation);
                 }
-            fitness.update(pop);
-            wbar = rules.w(pop, fitness_callback);
-            recorder(pop);
         }
     --pop.generation;
 }
