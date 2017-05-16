@@ -88,22 +88,6 @@ evolve_singlepop_regions_qtrait_cpp(
             throw std::runtime_error("negative recombination rate: "
                                      + std::to_string(recrate));
         }
-    // if (environmental_changes.empty())
-    //    {
-    //        throw std::runtime_error("empty list of environmental changes.");
-    //    }
-    // for (auto&& ei : environmental_changes)
-    //    {
-    //        if (std::get<VS>(ei) < 0.)
-    //            {
-    //                throw std::runtime_error("VS must be >= 0.");
-    //            }
-    //        if (std::get<SIGE>(ei) < 0.)
-    //            {
-    //                throw std::runtime_error(
-    //                    "environmental noise must be >= 0.");
-    //            }
-    //    }
     const auto fitness_callback = fitness.callback();
     pop.mutations.reserve(std::ceil(
         std::log(2 * pop.N)
@@ -116,9 +100,6 @@ evolve_singlepop_regions_qtrait_cpp(
         mu_selected, &pop.generation);
     ++pop.generation;
     auto rules = fwdpy11::qtrait::qtrait_model_rules(trait_to_fitness, noise);
-    // generate FIFO queue of env changes
-    // std::queue<env> env_q(std::deque<env>(environmental_changes.begin(),
-    //                                      environmental_changes.end()));
     fitness.update(pop);
     auto wbar = rules.w(pop, fitness_callback);
     for (unsigned generation = 0; generation < generations;
